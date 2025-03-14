@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
   // get kernel number
   int kernel_num = std::stoi(argv[1]);
-  if (kernel_num < 0 || kernel_num > 12) {
+  if (kernel_num < 0 || kernel_num > 14) {
     std::cerr << "Please enter a valid kernel number (0-12)" << std::endl;
     exit(EXIT_FAILURE);
   }
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
     cudaEventElapsedTime(&elapsed_time, beg, end);
     elapsed_time /= 1000.; // Convert to seconds
 
-    long flops = 2 * m * n * k;
+    int64_t flops = static_cast<int64_t>(2) * m * n * k;
     printf(
         "Average elapsed time: (%7.6f) s, performance: (%7.1f) GFLOPS. size: "
         "(%ld).\n",

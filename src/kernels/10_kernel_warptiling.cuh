@@ -7,6 +7,10 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 
+#ifndef uint
+typedef unsigned int uint;
+#endif
+
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 const int WARPSIZE = 32; // warpSize is not constexpr
 
