@@ -5,12 +5,6 @@
 #include <fstream>
 #include <iomanip>
 
-float get_sec() {
-  struct timeval time;
-  gettimeofday(&time, NULL);
-  return (1e6 * time.tv_sec + time.tv_usec);
-}
-
 float cpu_elapsed_time(float &beg, float &end) { return 1.0e-6 * (end - beg); }
 
 void cudaCheck(cudaError_t error, const char *file, int line) {
@@ -52,11 +46,9 @@ void CudaDeviceInfo() {
 };
 
 void randomize_matrix(float *mat, int N) {
-  // NOTICE: Use gettimeofday instead of srand((unsigned)time(NULL)); the time
-  // precision is too low and the same random number is generated.
-  struct timeval time {};
-  gettimeofday(&time, nullptr);
-  srand(time.tv_usec);
+  auto now = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch());
+  srand(duration.count());
   for (int i = 0; i < N; i++) {
     float tmp = (float)(rand() % 5) + 0.01 * (rand() % 5);
     tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.);
@@ -156,6 +148,20 @@ void run_sgemm_naive(int M, int N, int K, float alpha, float *A, float *B,
   sgemm_naive<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void run_sgemm_naive_1a(int M, int N, int K, float alpha, float *A, float *B,
+                     float beta, float *C) {
+  dim3 gridDim(CEIL_DIV(N, 32), CEIL_DIV(M, 32));
+  dim3 blockDim(32, 32);
+  sgemm_naive_1a<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
+void run_sgemm_naive_1b(int M, int N, int K, float alpha, float *A, float *B,
+                     float beta, float *C) {
+  dim3 gridDim(CEIL_DIV(N, 32), CEIL_DIV(M, 16));
+  dim3 blockDim(32, 16);
+  sgemm_naive_1a<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
 void run_sgemm_coalesce(int M, int N, int K, float alpha, float *A, float *B,
                         float beta, float *C) {
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
@@ -235,6 +241,57 @@ void runSgemmVectorize(int M, int N, int K, float alpha, float *A, float *B,
     dim3 blockDim((BM * BN) / (TM * TN));
     sgemmVectorize<BM, BN, BK, TM, TN>
         <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+  }
+}
+
+void runSgemmSubBlockTiling(int M, int N, int K, float alpha, float *A, float *B,
+  float beta, float *C) {
+  constexpr int TN = 4;
+  // brute force heuristic until parameter sweep
+  if(M <= 128 || N <= 128){
+    constexpr int NUM_THREADS = 64;
+    constexpr int BN = 16;
+    constexpr int BM = 16;
+    constexpr int BK = 32;
+    constexpr int SBN = 16;  
+    constexpr int TM = 1;
+    constexpr int SBM = (NUM_THREADS*TM*TN)/SBN;
+    dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+    dim3 blockDim(NUM_THREADS);
+    sgemmSubBlockTiling<BM, BN, BK, SBM, SBN, TM, TN, NUM_THREADS><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+  }else if(M <= 256 || N <= 256){
+    constexpr int NUM_THREADS = 128;
+    constexpr int BN = 32;
+    constexpr int BM = 32;
+    constexpr int BK = 32;
+    constexpr int SBN = 32;  
+    constexpr int TM = 2;
+    constexpr int SBM = (NUM_THREADS*TM*TN)/SBN;
+    dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+    dim3 blockDim(NUM_THREADS);
+    sgemmSubBlockTiling<BM, BN, BK, SBM, SBN, TM, TN, NUM_THREADS><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+  }else if(M <= 1024 || N <= 1024){
+    constexpr int NUM_THREADS = 128;
+    constexpr int BN = 64;
+    constexpr int BM = 64;
+    constexpr int BK = 16;
+    constexpr int SBN = 64;  
+    constexpr int TM = 4;
+    constexpr int SBM = (NUM_THREADS*TM*TN)/SBN;
+    dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+    dim3 blockDim(NUM_THREADS);
+    sgemmSubBlockTiling<BM, BN, BK, SBM, SBN, TM, TN, NUM_THREADS><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+  }else{
+    constexpr int NUM_THREADS = 128;
+    constexpr int BN = 128;
+    constexpr int BM = 128;
+    constexpr int BK = 16;
+    constexpr int SBN = 64; // switch to 128 for direct comparisson with warpTiling on A100, i.e. 16x8 (not 8x16) smem to register loading
+    constexpr int TM = 8;
+    constexpr int SBM = (NUM_THREADS*TM*TN)/SBN;
+    dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+    dim3 blockDim(NUM_THREADS);
+    sgemmSubBlockTiling<BM, BN, BK, SBM, SBN, TM, TN, NUM_THREADS><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
   }
 }
 
@@ -537,11 +594,20 @@ void run_kernel(int kernel_num, int M, int N, int K, float alpha, float *A,
   case 10:
     runSgemmWarptiling(M, N, K, alpha, A, B, beta, C);
     break;
+ // case 11:
+ //   runSgemmDoubleBuffering(M, N, K, alpha, A, B, beta, C);
+ //   break;
   case 11:
-    runSgemmDoubleBuffering(M, N, K, alpha, A, B, beta, C);
+    runSgemmDoubleBuffering2(M, N, K, alpha, A, B, beta, C);
     break;
   case 12:
-    runSgemmDoubleBuffering2(M, N, K, alpha, A, B, beta, C);
+    run_sgemm_naive_1a(M, N, K, alpha, A, B, beta, C);
+    break;
+  case 13:
+    run_sgemm_naive_1b(M, N, K, alpha, A, B, beta, C);
+    break;
+  case 14:
+    runSgemmSubBlockTiling(M, N, K, alpha, A, B, beta, C);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");

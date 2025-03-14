@@ -5,26 +5,34 @@ For an explanation of each kernel, see [siboehm.com/CUDA-MMM](https://siboehm.co
 
 ## Overview
 
-Running the kernels on a NVIDIA A6000 (Ampere):
+Running the kernels on a NVIDIA RTX 3070 Ti Mobile (Ampere)
+
+Clocks [locked to base values](https://salykova.github.io/sgemm-gpu) for profiling:
+
+   - nvidia-smi --lock-gpu-clocks=1035
+   - nvidia-smi --lock-memory-clocks=7001
 
 ![](benchmark_results.png)
 
 GFLOPs at matrix size 4096x4096:
 <!-- benchmark_results -->
-| Kernel                              |  GFLOPs/s | Performance relative to cuBLAS |
-|:------------------------------------|----------:|:-------------------------------|
-| 1: Naive                            |   `309.0` | 1.3%                           |
-| 2: GMEM Coalescing                  |  `1986.5` | 8.5%                           |
-| 3: SMEM Caching                     |  `2980.3` | 12.8%                          |
-| 4: 1D Blocktiling                   |  `8474.7` | 36.5%                          |
-| 5: 2D Blocktiling                   | `15971.7` | 68.7%                          |
-| 7: Avoid Bank Conflicts (Linearize) | `16213.4` | 69.7%                          |
-| 8: Avoid Bank Conflicts (Offset)    | `16459.2` | 70.8%                          |
-| 11: Double Buffering                | `17278.3` | 74.3%                          |
-| 6: Vectorized Mem Access            | `18237.3` | 78.4%                          |
-| 9: Autotuning                       | `19721.0` | 84.8%                          |
-| 10: Warptiling                      | `21779.3` | 93.7%                          |
-| 0: cuBLAS                           | `23249.6` | 100.0%                         |
+| Kernel                              |   GFLOPs/s | Performance relative to cuBLAS   |
+|:------------------------------------|-----------:|:---------------------------------|
+| 1: Naive                            |       89   | 1.2%                             |
+| 12: Naive GMEM Coalescing 32x32     |      640.2 | 8.4%                             |
+| 13: Naive GMEM Coalescing 32x16     |      734.1 | 9.6%                             |
+| 2: GMEM Coalescing                  |      751.8 | 9.8%                             |
+| 3: SMEM Caching                     |      806.6 | 10.6%                            |
+| 4: 1D Blocktiling                   |     2673.8 | 35.0%                            |
+| 5: 2D Blocktiling                   |     4991.2 | 65.3%                            |
+| 7: Avoid Bank Conflicts (Linearize) |     5202.9 | 68.1%                            |
+| 8: Avoid Bank Conflicts (Offset)    |     5454.2 | 71.3%                            |
+| 11: Double Buffering                |     6004.5 | 78.5%                            |
+| 6: Vectorized Mem Access            |     6188.8 | 80.9%                            |
+| 9: Autotuning                       |     6826.4 | 89.3%                            |
+| 10: Warptiling                      |     7539.4 | 98.6%                            |
+| 0: cuBLAS                           |     7645.4 | 100.0%                           |
+| 14: 2D Sublockiling                 |     8266.9 | 108.1%                           |
 <!-- benchmark_results -->
 
 ## Setup

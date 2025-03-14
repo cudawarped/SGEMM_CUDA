@@ -13,7 +13,8 @@ set(CUDA_COMPUTE_CAPABILITY 86)
 
 # in debug mode, add debug symbols to device code
 # this disables most optimizations and kills performance
-add_compile_options("$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx>")
+add_compile_options("$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-lineinfo;>")
+add_compile_options("$<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CUDA>>:-lineinfo;--ptxas-options=-v>")
 # add_compile_options("--ptxas-options=-v")
 
 # Configure header file search paths
@@ -31,6 +32,6 @@ add_executable(cuBLAS_sgemm cuBLAS_sgemm.cu )
 set_target_properties(sgemm PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
 target_link_libraries(cuBLAS_sgemm ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 
-add_executable(simplest_kernel simplest_kernel.cu)
-set_target_properties(sgemm PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
-target_link_libraries(simplest_kernel ${CUDA_LIBRARIES})
+# add_executable(simplest_kernel simplest_kernel.cu)
+# set_target_properties(sgemm PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
+# target_link_libraries(simplest_kernel ${CUDA_LIBRARIES})

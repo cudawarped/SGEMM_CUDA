@@ -6,11 +6,12 @@
     "configurations": [
         {
             "name": "CUDA C++: Launch",
-            "type": "cuda-gdb",
+            "type": "cppvsdbg",
+            //"type": "cuda-gdb",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "10"
+                "23"
             ],
             "cwd": "${workspaceFolder}",
         },

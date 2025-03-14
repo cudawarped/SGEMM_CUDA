@@ -13,7 +13,7 @@ from pathlib import Path
 # plt.rcParams["font.family"] = "serif"
 # To set some sane defaults
 matplotlib.style.use("fivethirtyeight")
-matplotlib.style.use("seaborn-v0_8-talk")
+sn.set_theme(style="whitegrid", context="talk")
 matplotlib.rcParams["font.family"] = "monospace"
 matplotlib.rcParams["figure.dpi"] = 200
 plt.rcParams["savefig.facecolor"] = "white"
@@ -32,6 +32,9 @@ KERNEL_NAMES = {
     9: "Autotuning",
     10: "Warptiling",
     11: "Double Buffering",
+    12: "Naive GMEM Coalescing 32x32",
+    13: "Naive GMEM Coalescing 32x16",
+    14: "2D Sublocktiling"
 }
 
 
